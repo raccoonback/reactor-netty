@@ -64,7 +64,7 @@ jobs:
           java-version: '8'
       - name: Build and test with Java 8
 #        run: ./gradlew clean check -x :reactor-netty-core:java17Test --no-daemon -x spotlessCheck -PforceTransport=${{ matrix.transport }} --tests  reactor.netty.http.client.Http2ConnectionLivenessHandlerTest --debug
-        run: ./gradlew clean reactor-netty-http:test --no-daemon -PforceTransport=${{ matrix.transport }} --tests  reactor.netty.http.client.Http2ConnectionLivenessHandlerTest -x spotlessCheck --warn
+        run: ./gradlew clean reactor-netty-http:test --no-daemon -PforceTransport=${{ matrix.transport }} --tests  reactor.netty.http.client.Http2ConnectionLivenessHandlerTest -x spotlessCheck --debug
       - name: Build and test UDS with NIO on Java 17
         if: ${{ ! startsWith(matrix.os, 'windows') }}
         run: ./gradlew reactor-netty-http:test --tests reactor.netty.http.server.HttpServerTests.testHttpServerWithDomainSockets_HTTP11 -PtestToolchain=17 --no-daemon -x spotlessCheck -PforceTransport=nio

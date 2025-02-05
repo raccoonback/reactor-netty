@@ -198,11 +198,13 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 
 			if (isOutOfTimeRange()) {
 				log.warn(
-						"[Http2ConnectionLivenessHandler][PingChecker] close by last ping ack. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}",
+						"[Http2ConnectionLivenessHandler][PingChecker] close by last ping ack. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}, current: {}, interval: {}",
 						isPingAckPending,
 						lastSentPingData,
 						lastIoTime,
-						lastReceivedPingTime
+						lastReceivedPingTime,
+						System.nanoTime(),
+						pingIntervalNanos
 				);
 
 				close(channel);
