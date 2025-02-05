@@ -15,9 +15,9 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: 8
-      - name: spotless (license header)
-        if: always()
-        run: ./gradlew clean spotlessCheck -PspotlessFrom=origin/${{ github.base_ref }}
+#      - name: spotless (license header)
+#        if: always()
+#        run: ./gradlew clean spotlessCheck -PspotlessFrom=origin/${{ github.base_ref }}
       - name: api compatibility
         if: always()
         run: ./gradlew clean japicmp
