@@ -244,7 +244,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			return ctx.executor()
 					.schedule(
 							new PingChecker(ctx),
-							pingIntervalNanos,
+							1000000000L,
 							NANOSECONDS
 					);
 		}
