@@ -58,10 +58,10 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 	private final ChannelFutureListener pingWriteListener = new PingWriteListener();
 	private final Http2ConnectionEncoder encoder;
 	private final long pingIntervalNanos;
-	private long lastSentPingData;
-	private long lastReceivedPingTime;
-	private long lastIoTime;
-	private boolean isPingAckPending;
+	private volatile long lastSentPingData;
+	private volatile long lastReceivedPingTime;
+	private volatile long lastIoTime;
+	private volatile boolean isPingAckPending;
 
 	public Http2ConnectionLivenessHandler(Http2ConnectionEncoder encoder, @Nullable Duration pingInterval) {
 		this.encoder = encoder;
