@@ -150,9 +150,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			}
 
 			if (lastIoTime == 0 || isIoInProgress()) {
-				if (log.isDebugEnabled()) {
-					log.debug("{} channel is currently reading or writing data.", channel);
-				}
+				log.debug("{} channel is currently reading or writing data.", channel);
 
 				isPingAckPending = false;
 				pingScheduler = invokeNextSchedule();
@@ -160,9 +158,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			}
 
 			if (!isPingAckPending) {
-				if (log.isDebugEnabled()) {
-					log.debug("Attempting to send a ping frame to {} channel.", channel);
-				}
+				log.debug("Attempting to send a ping frame to {} channel.", channel);
 
 				writePing(ctx);
 				pingScheduler = invokeNextSchedule();
@@ -170,9 +166,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			}
 
 			if (isOutOfTimeRange()) {
-				if (log.isInfoEnabled()) {
-					log.info("Closing {} channel due to delayed ping frame response (timeout: {} ns).", channel, pingIntervalNanos);
-				}
+				log.info("Closing {} channel due to delayed ping frame response (timeout: {} ns).", channel, pingIntervalNanos);
 
 				close(channel);
 				return;

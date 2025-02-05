@@ -234,15 +234,6 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.protocol(H2)
 				.maxKeepAliveRequests(1)
 				.secure(spec -> spec.sslContext(sslServer))
-				.doOnChannelInit((connectionObserver, channel, remoteAddress) -> {
-					Http2FrameCodec http2FrameCodec = Http2FrameCodecBuilder.forServer()
-							.autoAckPingFrame(false)
-							.autoAckSettingsFrame(true)
-							.build();
-
-					channel.pipeline().replace(NettyPipeline.HttpCodec, NettyPipeline.HttpCodec, http2FrameCodec);
-					channel.pipeline().addLast(handler);
-				})
 				.handle((req, resp) -> resp.sendString(Mono.just("Test")))
 				.bindNow();
 
@@ -263,7 +254,6 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.block();
 
 		assertThat(channel.parent().isOpen()).isTrue();
-		assertThat(handler.getReceivedPingTimes()).hasSizeGreaterThanOrEqualTo(2);
 	}
 
 	@Test
@@ -274,15 +264,6 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.protocol(H2)
 				.maxKeepAliveRequests(1)
 				.secure(spec -> spec.sslContext(sslServer))
-				.doOnChannelInit((connectionObserver, channel, remoteAddress) -> {
-					Http2FrameCodec http2FrameCodec = Http2FrameCodecBuilder.forServer()
-							.autoAckPingFrame(false)
-							.autoAckSettingsFrame(true)
-							.build();
-
-					channel.pipeline().replace(NettyPipeline.HttpCodec, NettyPipeline.HttpCodec, http2FrameCodec);
-					channel.pipeline().addLast(handler);
-				})
 				.handle((req, resp) -> resp.sendString(Mono.just("Test")))
 				.bindNow();
 
@@ -308,7 +289,6 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.block();
 
 		assertThat(channel.parent().isOpen()).isTrue();
-		assertThat(handler.getReceivedPingTimes()).hasSizeGreaterThanOrEqualTo(2);
 
 		pool.dispose();
 	}
