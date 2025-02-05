@@ -91,21 +91,21 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		log.error("[Http2ConnectionLivenessHandler] channelRead. data: {}", msg);
+		log.warn("[Http2ConnectionLivenessHandler] channelRead. data: {}", msg);
 		if (msg instanceof Http2PingFrame) {
 			Http2PingFrame frame = (Http2PingFrame) msg;
 
-			log.error("[Http2ConnectionLivenessHandler] channelRead. ping data: {}", msg);
+			log.warn("[Http2ConnectionLivenessHandler] channelRead. ping data: {}", msg);
 
 			if (frame.ack() && frame.content() == lastSentPingData) {
-				log.error("[Http2ConnectionLivenessHandler] channelRead. ping correct data: {}", msg);
+				log.warn("[Http2ConnectionLivenessHandler] channelRead. ping correct data: {}", msg);
 
 
 				lastReceivedPingTime = System.nanoTime();
 			}
 		}
 		else {
-			log.error("[Http2ConnectionLivenessHandler] channelRead. other data: {}", msg);
+			log.warn("[Http2ConnectionLivenessHandler] channelRead. other data: {}", msg);
 
 			lastIoTime = System.nanoTime();
 		}
@@ -116,7 +116,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 	@Override
 	@SuppressWarnings("FutureReturnValueIgnored")
 	public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-		log.error("[Http2ConnectionLivenessHandler] write. data: {}", msg);
+		log.warn("[Http2ConnectionLivenessHandler] write. data: {}", msg);
 
 		lastIoTime = System.nanoTime();
 
@@ -125,7 +125,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		log.error("[Http2ConnectionLivenessHandler] channelInactive.");
+		log.warn("[Http2ConnectionLivenessHandler] channelInactive.");
 
 		cancel();
 		ctx.fireChannelInactive();
@@ -133,7 +133,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		log.error("[Http2ConnectionLivenessHandler] exceptionCaught.");
+		log.warn("[Http2ConnectionLivenessHandler] exceptionCaught.");
 
 		cancel();
 		ctx.fireExceptionCaught(cause);
@@ -159,17 +159,17 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 
 		@Override
 		public void run() {
-			log.error("[Http2ConnectionLivenessHandler][PingChecker] run start.");
+			log.warn("[Http2ConnectionLivenessHandler][PingChecker] run start.");
 
 			Channel channel = ctx.channel();
 			if (channel == null || !channel.isOpen()) {
-				log.error("[Http2ConnectionLivenessHandler][PingChecker] channel closed.");
+				log.warn("[Http2ConnectionLivenessHandler][PingChecker] channel closed.");
 
 				return;
 			}
 
 			if (lastIoTime == 0 || isIoInProgress()) {
-				log.error(
+				log.warn(
 						"[Http2ConnectionLivenessHandler][PingChecker] run io processing. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}",
 						isPingAckPending,
 						lastSentPingData,
@@ -183,7 +183,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			}
 
 			if (!isPingAckPending) {
-				log.error(
+				log.warn(
 						"[Http2ConnectionLivenessHandler][PingChecker] write ping. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}",
 						isPingAckPending,
 						lastSentPingData,
@@ -197,7 +197,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			}
 
 			if (isOutOfTimeRange()) {
-				log.error(
+				log.warn(
 						"[Http2ConnectionLivenessHandler][PingChecker] close by last ping ack. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}",
 						isPingAckPending,
 						lastSentPingData,
@@ -209,7 +209,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 				return;
 			}
 
-			log.error(
+			log.warn(
 					"[Http2ConnectionLivenessHandler][PingChecker] received ping ack. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}",
 					isPingAckPending,
 					lastSentPingData,
@@ -250,7 +250,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 		private void close(Channel channel) {
 			channel.close()
 					.addListener(future -> {
-						log.error(
+						log.warn(
 								"[Http2ConnectionLivenessHandler][close] close channel. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}, result: {}",
 								isPingAckPending,
 								lastSentPingData,
@@ -266,7 +266,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 
 		@Override
 		public void operationComplete(ChannelFuture future) throws Exception {
-			log.error(
+			log.warn(
 					"[Http2ConnectionLivenessHandler][PingWriteListener] write ping result. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}, result: {}",
 					isPingAckPending,
 					lastSentPingData,
