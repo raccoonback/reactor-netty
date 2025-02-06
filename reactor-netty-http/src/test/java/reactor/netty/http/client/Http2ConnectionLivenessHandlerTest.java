@@ -328,7 +328,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 			this.consumer = (ctx, frame) ->
 					ctx.writeAndFlush(new DefaultHttp2PingFrame(frame.content(), true))
 							.addListener((listener) -> {
-								log.info("Wrote ping ack. data: {}, result: {}", frame.content(), listener.isSuccess());
+								log.warn("Wrote ping ack. data: {}, result: {}", frame.content(), listener.isSuccess());
 							});
 		}
 

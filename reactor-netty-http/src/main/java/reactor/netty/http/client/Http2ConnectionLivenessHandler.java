@@ -61,11 +61,11 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 	private final long pingAckTimeoutNanos;
 	private final long pingScheduleIntervalNanos;
 	private final int pingAckDropThreshold;
-	private int pingAckDropCount;
-	private long lastSentPingData;
-	private long lastReceivedPingTime;
-	private long lastIoTime;
-	private boolean isPingAckPending;
+	private volatile int pingAckDropCount;
+	private volatile long lastSentPingData;
+	private volatile long lastReceivedPingTime;
+	private volatile long lastIoTime;
+	private volatile boolean isPingAckPending;
 
 	public Http2ConnectionLivenessHandler(Http2ConnectionEncoder encoder, @Nullable Duration pingAckTimeout,
 	                                      @Nullable Duration pintScheduleInterval, @Nullable Integer pingAckDropThreshold) {
@@ -193,11 +193,12 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 
 			if (lastIoTime == 0 || isIoInProgress()) {
 				log.warn(
-						"[Http2ConnectionLivenessHandler][PingChecker] run io processing. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}",
+						"[Http2ConnectionLivenessHandler][PingChecker] run io processing. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}, current: {}",
 						isPingAckPending,
 						lastSentPingData,
 						lastIoTime,
-						lastReceivedPingTime
+						lastReceivedPingTime,
+						System.nanoTime()
 				);
 
 				isPingAckPending = false;
@@ -208,11 +209,12 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 
 			if (!isPingAckPending) {
 				log.warn(
-						"[Http2ConnectionLivenessHandler][PingChecker] write ping. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}",
+						"[Http2ConnectionLivenessHandler][PingChecker] write ping. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}, current: {}",
 						isPingAckPending,
 						lastSentPingData,
 						lastIoTime,
-						lastReceivedPingTime
+						lastReceivedPingTime,
+						System.nanoTime()
 				);
 
 				writePing(ctx);
@@ -234,17 +236,13 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 				);
 
 				if (isExceedAckDropThreshold()) {
-					if (log.isInfoEnabled()) {
-						log.info("Closing {} channel due to delayed ping frame response (timeout: {} ns). lastReceivedPingTime: {}, current: {}", channel, pingAckTimeoutNanos, lastReceivedPingTime, System.nanoTime());
-					}
+					log.warn("Closing {} channel due to delayed ping frame response (timeout: {} ns). lastReceivedPingTime: {}, current: {}", channel, pingAckTimeoutNanos, lastReceivedPingTime, System.nanoTime());
 
 					close(channel);
 					return;
 				}
 
-				if (log.isInfoEnabled()) {
-					log.info("Drop ping ack frame in {} channel. (ping: {})", channel, lastSentPingData);
-				}
+				log.warn("Drop ping ack frame in {} channel. (ping: {})", channel, lastSentPingData);
 
 				writePing(ctx);
 				pingScheduler = invokeNextSchedule();
@@ -252,11 +250,12 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			}
 
 			log.warn(
-					"[Http2ConnectionLivenessHandler][PingChecker] received ping ack. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}",
+					"[Http2ConnectionLivenessHandler][PingChecker] received ping ack. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}, current: {}",
 					isPingAckPending,
 					lastSentPingData,
 					lastIoTime,
-					lastReceivedPingTime
+					lastReceivedPingTime,
+					System.nanoTime()
 			);
 
 			isPingAckPending = false;
