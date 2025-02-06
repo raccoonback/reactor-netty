@@ -213,7 +213,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.http2Settings(builder -> {
 					builder.pingAckTimeout(Duration.ofMillis(100))
 							.pingScheduleInterval(Duration.ofMillis(300))
-							.pingAckDropThreshold(5);
+							.pingAckDropThreshold(3);
 				})
 				.get()
 				.uri("/")
