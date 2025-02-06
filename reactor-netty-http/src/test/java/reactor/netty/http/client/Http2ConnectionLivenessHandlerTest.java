@@ -256,7 +256,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.secure(spec -> spec.sslContext(sslClient))
 				.http2Settings(builder -> {
 					builder.pingAckTimeout(Duration.ofSeconds(1))
-							.pingScheduleInterval(Duration.ofSeconds(1))
+							.pingScheduleInterval(Duration.ofMillis(500))
 							.pingAckDropThreshold(0);
 				})
 				.get()
@@ -300,7 +300,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.secure(spec -> spec.sslContext(sslClient))
 				.http2Settings(builder -> {
 					builder.pingAckTimeout(Duration.ofSeconds(1))
-							.pingScheduleInterval(Duration.ofSeconds(1))
+							.pingScheduleInterval(Duration.ofMillis(500))
 							.pingAckDropThreshold(0);
 				})
 				.get()
