@@ -280,11 +280,8 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 
 		private boolean isOutOfTimeRange() {
 			log.warn("[Http2ConnectionLivenessHandler][isOutOfTimeRange] current: {}, lastSendingPingTime: {}, lastReceivedPingTime: {}, interval: {}", System.nanoTime(), lastSendingPingTime, lastReceivedPingTime, lastSendingPingTime - lastReceivedPingTime);
-			if(lastSendingPingTime == 0) {
-				return pingAckTimeoutNanos < (System.nanoTime() - lastReceivedPingTime);
-			}
 
-			return pingAckTimeoutNanos < (lastReceivedPingTime - lastSendingPingTime);
+			return pingAckTimeoutNanos < Math.abs(lastReceivedPingTime - lastSendingPingTime);
 		}
 
 		private void countPingDrop() {
