@@ -251,10 +251,11 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			}
 
 			log.warn(
-					"[Http2ConnectionLivenessHandler][PingChecker] received ping ack. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastReceivedPingTime: {}, current: {}",
+					"[Http2ConnectionLivenessHandler][PingChecker] received ping ack. isPingAckPending: {}, lastData: {}, lastIoTime: {}, lastSendingPingTime: {}, lastReceivedPingTime: {}, current: {}",
 					isPingAckPending,
 					lastSentPingData,
 					lastIoTime,
+					lastSendingPingTime,
 					lastReceivedPingTime,
 					System.nanoTime()
 			);
