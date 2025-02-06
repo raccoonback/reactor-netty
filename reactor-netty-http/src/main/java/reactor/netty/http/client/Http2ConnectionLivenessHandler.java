@@ -28,6 +28,7 @@ import reactor.util.Loggers;
 import reactor.util.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -57,20 +58,40 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 	private ScheduledFuture<?> pingScheduler;
 	private final ChannelFutureListener pingWriteListener = new PingWriteListener();
 	private final Http2ConnectionEncoder encoder;
-	private final long pingIntervalNanos;
+	private final long pingAckTimeoutNanos;
+	private final long pingScheduleIntervalNanos;
+	private final int pingAckDropThreshold;
+	private int pingAckDropCount;
 	private long lastSentPingData;
 	private long lastReceivedPingTime;
 	private long lastIoTime;
 	private boolean isPingAckPending;
 
-	public Http2ConnectionLivenessHandler(Http2ConnectionEncoder encoder, @Nullable Duration pingInterval) {
+	public Http2ConnectionLivenessHandler(Http2ConnectionEncoder encoder, @Nullable Duration pingAckTimeout,
+	                                      @Nullable Duration pintScheduleInterval, @Nullable Integer pingAckDropThreshold) {
+		Objects.requireNonNull(encoder, "encoder");
+
 		this.encoder = encoder;
 
-		if (pingInterval != null) {
-			this.pingIntervalNanos = pingInterval.toNanos();
+		if (pingAckTimeout != null) {
+			this.pingAckTimeoutNanos = pingAckTimeout.toNanos();
 		}
 		else {
-			this.pingIntervalNanos = 0L;
+			this.pingAckTimeoutNanos = 0L;
+		}
+
+		if (pintScheduleInterval != null) {
+			this.pingScheduleIntervalNanos = pintScheduleInterval.toNanos();
+		}
+		else {
+			this.pingScheduleIntervalNanos = 0L;
+		}
+
+		if (pingAckDropThreshold != null) {
+			this.pingAckDropThreshold = pingAckDropThreshold;
+		}
+		else {
+			this.pingAckDropThreshold = 0;
 		}
 	}
 
@@ -78,10 +99,11 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
 		if (isPingIntervalConfigured()) {
 			isPingAckPending = false;
+			pingAckDropCount = 0;
 			pingScheduler = ctx.executor()
 					.schedule(
 							new PingChecker(ctx),
-							pingIntervalNanos,
+							pingAckTimeoutNanos,
 							NANOSECONDS
 					);
 		}
@@ -125,7 +147,8 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 	}
 
 	private boolean isPingIntervalConfigured() {
-		return pingIntervalNanos > 0;
+		return pingAckTimeoutNanos > 0
+				&& pingScheduleIntervalNanos > 0;
 	}
 
 	private void cancel() {
@@ -155,6 +178,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 				}
 
 				isPingAckPending = false;
+				pingAckDropCount = 0;
 				pingScheduler = invokeNextSchedule();
 				return;
 			}
@@ -170,15 +194,28 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			}
 
 			if (isOutOfTimeRange()) {
-				if (log.isInfoEnabled()) {
-					log.info("Closing {} channel due to delayed ping frame response (timeout: {} ns).", channel, pingIntervalNanos);
+				countPingDrop();
+
+				if(isExceedAckDropThreshold()) {
+					if (log.isInfoEnabled()) {
+						log.info("Closing {} channel due to delayed ping frame response (timeout: {} ns). lastReceivedPingTime: {}, current: {}", channel, pingAckTimeoutNanos, lastReceivedPingTime, System.nanoTime());
+					}
+
+					close(channel);
+					return;
 				}
 
-				close(channel);
+				if (log.isInfoEnabled()) {
+					log.info("Drop ping ack frame in {} channel. (ping: {})", channel, lastSentPingData);
+				}
+
+				writePing(ctx);
+				pingScheduler = invokeNextSchedule();
 				return;
 			}
 
 			isPingAckPending = false;
+			pingAckDropCount = 0;
 			pingScheduler = invokeNextSchedule();
 		}
 
@@ -192,18 +229,26 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 		}
 
 		private boolean isIoInProgress() {
-			return pingIntervalNanos > (System.nanoTime() - lastIoTime);
+			return pingAckTimeoutNanos >= (System.nanoTime() - lastIoTime);
 		}
 
 		private boolean isOutOfTimeRange() {
-			return pingIntervalNanos < (System.nanoTime() - lastReceivedPingTime);
+			return pingAckTimeoutNanos < (System.nanoTime() - lastReceivedPingTime);
+		}
+
+		private void countPingDrop() {
+			pingAckDropCount++;
+		}
+
+		private boolean isExceedAckDropThreshold() {
+			return pingAckDropCount > pingAckDropThreshold;
 		}
 
 		private ScheduledFuture<?> invokeNextSchedule() {
 			return ctx.executor()
 					.schedule(
 							new PingChecker(ctx),
-							pingIntervalNanos,
+							pingScheduleIntervalNanos,
 							NANOSECONDS
 					);
 		}

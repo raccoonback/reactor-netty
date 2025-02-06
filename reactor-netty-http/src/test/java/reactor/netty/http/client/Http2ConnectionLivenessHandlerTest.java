@@ -92,7 +92,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 	}
 
 	@Test
-	void noPingCheckWhenNotConfigured() {
+	void maintainConnectionWithoutPingCheckWhenNotConfigured() {
 		Http2PingFrameHandler handler = new Http2PingFrameHandler();
 
 		disposableServer = createServer()
@@ -121,7 +121,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.single()
 				.block();
 
-		Mono.delay(Duration.ofSeconds(1))
+		Mono.delay(Duration.ofSeconds(5))
 				.block();
 
 		assertThat(handler.getReceivedPingTimes()).isEmpty();
@@ -160,7 +160,9 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.keepAlive(true)
 				.secure(spec -> spec.sslContext(sslClient))
 				.http2Settings(builder -> {
-					builder.pingInterval(Duration.ofMillis(100));
+					builder.pingAckTimeout(Duration.ofMillis(100))
+							.pingScheduleInterval(Duration.ofMillis(300))
+							.pingAckDropThreshold(3);
 				})
 				.get()
 				.uri("/")
@@ -168,10 +170,10 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.single()
 				.block();
 
-		Mono.delay(Duration.ofSeconds(2))
+		Mono.delay(Duration.ofSeconds(5))
 				.block();
 
-		assertThat(handler.getReceivedPingTimes()).hasSize(1);
+		assertThat(handler.getReceivedPingTimes()).hasSizeGreaterThan(3);
 		assertThat(channel.parent().isOpen()).isFalse();
 	}
 
@@ -209,7 +211,9 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.keepAlive(true)
 				.secure(spec -> spec.sslContext(sslClient))
 				.http2Settings(builder -> {
-					builder.pingInterval(Duration.ofMillis(100));
+					builder.pingAckTimeout(Duration.ofMillis(100))
+							.pingScheduleInterval(Duration.ofMillis(300))
+							.pingAckDropThreshold(5);
 				})
 				.get()
 				.uri("/")
@@ -217,10 +221,10 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.single()
 				.block();
 
-		Mono.delay(Duration.ofSeconds(2))
+		Mono.delay(Duration.ofSeconds(5))
 				.block();
 
-		assertThat(handler.getReceivedPingTimes()).hasSize(1);
+		assertThat(handler.getReceivedPingTimes()).hasSizeGreaterThan(3);
 		assertThat(channel.parent().isOpen()).isFalse();
 
 		pool.dispose();
@@ -251,7 +255,9 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.keepAlive(true)
 				.secure(spec -> spec.sslContext(sslClient))
 				.http2Settings(builder -> {
-					builder.pingInterval(Duration.ofSeconds(1));
+					builder.pingAckTimeout(Duration.ofSeconds(1))
+							.pingScheduleInterval(Duration.ofSeconds(1))
+							.pingAckDropThreshold(0);
 				})
 				.get()
 				.uri("/")
@@ -259,7 +265,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.single()
 				.block();
 
-		Mono.delay(Duration.ofSeconds(10))
+		Mono.delay(Duration.ofSeconds(5))
 				.block();
 
 		assertThat(channel.parent().isOpen()).isTrue();
@@ -286,17 +292,16 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.handle((req, resp) -> resp.sendString(Mono.just("Test")))
 				.bindNow();
 
-		ConnectionProvider pool = ConnectionProvider.builder("connectionRetentionInPoolOnPingFrameAck")
-				.maxConnections(10)
-				.maxIdleTime(Duration.ofSeconds(10))
-				.maxLifeTime(Duration.ofSeconds(10))
-				.build();
+		ConnectionProvider pool = ConnectionProvider.create("connectionRetentionInPoolOnPingFrameAck", 1);
+
 		Channel channel = createClient(pool, disposableServer::address)
 				.protocol(H2)
 				.keepAlive(true)
 				.secure(spec -> spec.sslContext(sslClient))
 				.http2Settings(builder -> {
-					builder.pingInterval(Duration.ofSeconds(1));
+					builder.pingAckTimeout(Duration.ofSeconds(1))
+							.pingScheduleInterval(Duration.ofSeconds(1))
+							.pingAckDropThreshold(0);
 				})
 				.get()
 				.uri("/")
@@ -304,7 +309,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.single()
 				.block();
 
-		Mono.delay(Duration.ofSeconds(10))
+		Mono.delay(Duration.ofSeconds(5))
 				.block();
 
 		assertThat(channel.parent().isOpen()).isTrue();
