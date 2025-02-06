@@ -61,11 +61,12 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 	private final long pingAckTimeoutNanos;
 	private final long pingScheduleIntervalNanos;
 	private final int pingAckDropThreshold;
-	private volatile int pingAckDropCount;
-	private volatile long lastSentPingData;
-	private volatile long lastReceivedPingTime;
-	private volatile long lastIoTime;
-	private volatile boolean isPingAckPending;
+	private int pingAckDropCount;
+	private long lastSentPingData;
+	private long lastReceivedPingTime;
+	private long lastSendingPingTime;
+	private long lastIoTime;
+	private boolean isPingAckPending;
 
 	public Http2ConnectionLivenessHandler(Http2ConnectionEncoder encoder, @Nullable Duration pingAckTimeout,
 	                                      @Nullable Duration pintScheduleInterval, @Nullable Integer pingAckDropThreshold) {
@@ -277,7 +278,12 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 		}
 
 		private boolean isOutOfTimeRange() {
-			return pingAckTimeoutNanos < (System.nanoTime() - lastReceivedPingTime);
+			log.warn("[Http2ConnectionLivenessHandler][isOutOfTimeRange] current: {}, lastSendingPingTime: {}, lastReceivedPingTime: {}, interval: {}", System.nanoTime(), lastSendingPingTime, lastReceivedPingTime, lastSendingPingTime - lastReceivedPingTime);
+			if(lastSendingPingTime == 0) {
+				return pingAckTimeoutNanos < (System.nanoTime() - lastReceivedPingTime);
+			}
+
+			return pingAckTimeoutNanos < (lastReceivedPingTime - lastSendingPingTime);
 		}
 
 		private void countPingDrop() {
@@ -327,6 +333,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 
 			if (future.isSuccess()) {
 				isPingAckPending = true;
+				lastSendingPingTime = System.nanoTime();
 			}
 
 		}
