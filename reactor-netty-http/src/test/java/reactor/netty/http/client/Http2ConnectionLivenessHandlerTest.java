@@ -131,7 +131,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 	@Test
 	void closeConnectionIfPingFrameDelayed() {
 		Http2PingFrameHandler handler = new Http2PingFrameHandler(
-				(ctx, frame) -> Mono.delay(Duration.ofMillis(200))
+				(ctx, frame) -> Mono.delay(Duration.ofMillis(500))
 						.doOnNext(
 								unUsed -> ctx.writeAndFlush(new DefaultHttp2PingFrame(frame.content(), true))
 										.addListener(ChannelFutureListener.CLOSE_ON_FAILURE)
@@ -180,7 +180,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 	@Test
 	void closeConnectionInPoolIfPingFrameDelayed() {
 		Http2PingFrameHandler handler = new Http2PingFrameHandler(
-				(ctx, frame) -> Mono.delay(Duration.ofMillis(200))
+				(ctx, frame) -> Mono.delay(Duration.ofMillis(500))
 						.doOnNext(
 								unUsed -> ctx.writeAndFlush(new DefaultHttp2PingFrame(frame.content(), true))
 										.addListener(ChannelFutureListener.CLOSE_ON_FAILURE)
