@@ -134,7 +134,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 	@CsvSource({"100,300,3", "300,100,3"})
 	void closeConnectionIfPingFrameDelayed(Integer pingAckTimeout, Integer pingScheduleInterval, Integer pingAckDropThreshold) {
 		Http2PingFrameHandler handler = new Http2PingFrameHandler(
-				(ctx, frame) -> Mono.delay(Duration.ofMillis(600))
+				(ctx, frame, receivedPingTimes) -> Mono.delay(Duration.ofMillis(600))
 						.doOnNext(
 								unUsed -> ctx.writeAndFlush(new DefaultHttp2PingFrame(frame.content(), true))
 										.addListener(ChannelFutureListener.CLOSE_ON_FAILURE)
@@ -173,7 +173,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.single()
 				.block();
 
-		Mono.delay(Duration.ofSeconds(5))
+		Mono.delay(Duration.ofSeconds(3))
 				.block();
 
 		assertThat(channel.parent().isOpen()).isFalse();
@@ -184,7 +184,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 	@CsvSource({"100,300,3", "300,100,3"})
 	void closeConnectionInPoolIfPingFrameDelayed(Integer pingAckTimeout, Integer pingScheduleInterval, Integer pingAckDropThreshold) {
 		Http2PingFrameHandler handler = new Http2PingFrameHandler(
-				(ctx, frame) -> Mono.delay(Duration.ofMillis(600))
+				(ctx, frame, receivedPingTimes) -> Mono.delay(Duration.ofMillis(600))
 						.doOnNext(
 								unUsed -> ctx.writeAndFlush(new DefaultHttp2PingFrame(frame.content(), true))
 										.addListener(ChannelFutureListener.CLOSE_ON_FAILURE)
@@ -225,7 +225,7 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 				.single()
 				.block();
 
-		Mono.delay(Duration.ofSeconds(5))
+		Mono.delay(Duration.ofSeconds(3))
 				.block();
 
 		assertThat(channel.parent().isOpen()).isFalse();
@@ -328,24 +328,24 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 
 		private final List<LocalDateTime> receivedPingTimes = new ArrayList<>();
 
-		private final BiConsumer<ChannelHandlerContext, Http2PingFrame> consumer;
+		private final TriConsumer<ChannelHandlerContext, Http2PingFrame, List<LocalDateTime>> consumer;
 
 		private Http2PingFrameHandler() {
-			this.consumer = (ctx, frame) ->
+			this.consumer = (ctx, frame, receivedPings) ->
 					ctx.writeAndFlush(new DefaultHttp2PingFrame(frame.content(), true))
 							.addListener((listener) -> {
-								log.warn("Wrote ping ack. data: {}, result: {}", frame.content(), listener.isSuccess());
+								log.warn("Wrote ping ack. data: {}, result: {}, received ping times: {}", frame.content(), listener.isSuccess(), receivedPings);
 							});
 		}
 
-		private Http2PingFrameHandler(BiConsumer<ChannelHandlerContext, Http2PingFrame> consumer) {
+		private Http2PingFrameHandler(TriConsumer<ChannelHandlerContext, Http2PingFrame, List<LocalDateTime>> consumer) {
 			this.consumer = consumer;
 		}
 
 		@Override
 		protected void channelRead0(ChannelHandlerContext ctx, Http2PingFrame frame) throws InterruptedException {
 			receivedPingTimes.add(LocalDateTime.now(ZoneId.systemDefault()));
-			consumer.accept(ctx, frame);
+			consumer.accept(ctx, frame, receivedPingTimes);
 			ctx.fireChannelRead(frame);
 		}
 
@@ -354,5 +354,10 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 					.sorted()
 					.collect(Collectors.toList());
 		}
+	}
+
+	@FunctionalInterface
+	public interface TriConsumer<T, U, V> {
+		void accept(T t, U u, V v);
 	}
 }
