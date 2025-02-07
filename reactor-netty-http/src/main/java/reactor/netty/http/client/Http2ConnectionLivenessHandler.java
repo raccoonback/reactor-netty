@@ -203,7 +203,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 				);
 
 				isPingAckPending = false;
-				pingAckDropCount = 0;
+				initializePingDropCount();
 				pingScheduler = invokeNextSchedule();
 				return;
 			}
@@ -261,7 +261,7 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			);
 
 			isPingAckPending = false;
-			pingAckDropCount = 0;
+			initializePingDropCount();
 			pingScheduler = invokeNextSchedule();
 		}
 
@@ -284,8 +284,13 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			return pingAckTimeoutNanos < Math.abs(lastReceivedPingTime - lastSendingPingTime);
 		}
 
+
 		private void countPingDrop() {
 			pingAckDropCount++;
+		}
+
+		private void initializePingDropCount() {
+			pingAckDropCount = 0;
 		}
 
 		private boolean isExceedAckDropThreshold() {
@@ -330,10 +335,13 @@ final class Http2ConnectionLivenessHandler extends ChannelDuplexHandler {
 			);
 
 			if (future.isSuccess()) {
-				isPingAckPending = true;
-				lastSendingPingTime = System.nanoTime();
+				startAwaiting();
 			}
+		}
 
+		private void startAwaiting() {
+			isPingAckPending = true;
+			lastSendingPingTime = System.nanoTime();
 		}
 	}
 }
