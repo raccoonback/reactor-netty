@@ -45,7 +45,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -322,6 +321,63 @@ class Http2ConnectionLivenessHandlerTest extends BaseHttpTest {
 		assertThat(handler.getReceivedPingTimes()).hasSizeGreaterThanOrEqualTo(2);
 
 		pool.dispose();
+	}
+
+	@ParameterizedTest
+	@CsvSource({"100,300,3", "300,100,3"})
+	void ackPingFrameWithinThreshold(Integer pingAckTimeout, Integer pingScheduleInterval, Integer pingAckDropThreshold) {
+		Http2PingFrameHandler handler = new Http2PingFrameHandler(
+				(ctx, frame, receivedPingTimes) -> {
+					int delayTime = 0;
+					if (receivedPingTimes.size() % 3 != 0) {
+						delayTime = 600;
+					}
+
+					Mono.delay(Duration.ofMillis(delayTime))
+							.doOnNext(
+									unUsed -> ctx.writeAndFlush(new DefaultHttp2PingFrame(frame.content(), true))
+											.addListener(ChannelFutureListener.CLOSE_ON_FAILURE)
+							)
+							.subscribe();
+				}
+		);
+
+		disposableServer = createServer()
+				.protocol(H2)
+				.maxKeepAliveRequests(1)
+				.secure(spec -> spec.sslContext(sslServer))
+				.doOnChannelInit((connectionObserver, channel, remoteAddress) -> {
+					Http2FrameCodec http2FrameCodec = Http2FrameCodecBuilder.forServer()
+							.autoAckPingFrame(false)
+							.autoAckSettingsFrame(true)
+							.build();
+
+					channel.pipeline().replace(NettyPipeline.HttpCodec, NettyPipeline.HttpCodec, http2FrameCodec);
+					channel.pipeline().addLast(handler);
+				})
+				.handle((req, resp) -> resp.sendString(Mono.just("Test")))
+				.bindNow();
+
+		Channel channel = createClient(disposableServer::address)
+				.protocol(H2)
+				.keepAlive(true)
+				.secure(spec -> spec.sslContext(sslClient))
+				.http2Settings(builder -> {
+					builder.pingAckTimeout(Duration.ofMillis(pingAckTimeout))
+							.pingScheduleInterval(Duration.ofMillis(pingScheduleInterval))
+							.pingAckDropThreshold(pingAckDropThreshold);
+				})
+				.get()
+				.uri("/")
+				.responseConnection((conn, receiver) -> Mono.just(receiver.channel()))
+				.single()
+				.block();
+
+		Mono.delay(Duration.ofSeconds(5))
+				.block();
+
+		assertThat(channel.parent().isOpen()).isTrue();
+		assertThat(handler.getReceivedPingTimes()).hasSizeGreaterThanOrEqualTo(2);
 	}
 
 	private static final class Http2PingFrameHandler extends SimpleChannelInboundHandler<Http2PingFrame> {
